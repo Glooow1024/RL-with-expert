@@ -12,44 +12,28 @@ from torch.utils.data import Dataset
 
 
 class Expert(Dataset):
-    def __init__(self, expert_dir, num_files=10, num_trajectories_per_file=100, subsample_frequency=1):
+    def __init__(self, expert_dir, buffer_size=1e6):
         expert_files = sorted([os.path.join(expert_dir, f)
                         for f in os.listdir(expert_dir) if '.pt' in f])  ### 读取目录下所有 pt 文件 6/27
-        expert_samples = random.sample(expert_files, num_files)   ### 随机选取 num_files 个文件
-        #start_idx = np.random.randint(len(expert_files)-num_files)
-        #sample_files = expert_files
+        temp_trajectories = torch.load(expert_files[0])
+        num_samples_per_file = torch.prod(torch.tensor(temp_trajectories['states'].shape[0:2]))###一个文件中包含多少expert timestep6/28
+        num_files = np.minimum(len(expert_files), buffer_size//num_samples_per_file)   ### 随机取出来的文件个数 6/28
+        start_idx = np.random.randint(len(expert_files)-num_files)
+        sample_files = expert_files[start_idx:start_idx+num_files]  ### 为了计算 expert value，不能打乱 6/28
         
         self.trajectories = {}
-        all_trajectories = {}
-        num_trajectories = num_files * num_trajectories_per_file
-        for sample_file in expert_samples:
+        num_trajectories = num_files * num_samples_per_file
+        for sample_file in sample_files:
             temp_trajectories = torch.load(sample_file)
         
-            perm = torch.randperm(temp_trajectories['states'].size(0))
-            idx = perm[:num_trajectories_per_file]
-
             for k,v in temp_trajectories.items():
-                if k not in all_trajectories.keys():
-                    all_trajectories[k] = [v[idx]]
+                if k not in self.trajectories.keys():
+                    self.trajectories[k] = [v]
                 else:
-                    all_trajectories[k] += [v[idx]]
+                    self.trajectories[k] += [v]
                     
-        for k,v in all_trajectories.items():
-            all_trajectories[k] = torch.cat(all_trajectories[k])
-            
-        # See https://github.com/pytorch/pytorch/issues/14886
-        # .long() for fixing bug in torch v0.4.1
-        start_idx = torch.randint(
-            0, subsample_frequency, size=(num_trajectories, )).long()
-            
-        for k, v in all_trajectories.items():
-            if k != 'lengths':
-                samples = []
-                for i in range(num_trajectories):
-                    samples.append(v[i, start_idx[i]::subsample_frequency])
-                self.trajectories[k] = torch.stack(samples)
-            else:
-                self.trajectories[k] = v // subsample_frequency
+        for k,v in self.trajectories.items():
+            self.trajectories[k] = torch.cat(self.trajectories[k])
 
         self.i2traj_idx = {}
         self.i2i = {}
@@ -84,12 +68,36 @@ class Expert(Dataset):
     def __getitem__(self, i):
         traj_idx, i = self.get_idx[i]
 
-        return self.trajectories['states'][traj_idx][i], self.trajectories['actions'][traj_idx][i]
+        return self.trajectories['states'][traj_idx][i], self.trajectories['actions'][traj_idx][i], \
+            self.trajectories['rewards'][traj_idx][i], self.trajectories['done'][traj_idx][i]
+        #return self.trajectories['states'][traj_idx][i], self.trajectories['actions'][traj_idx][i]
     
-    def value(self):
+    def value(self, num_episodes=10, gamma=0.99):
         ### 计算 expert 的 value
-        ### 未完待续。。。 6/28
-        pass
+        idx = np.random.randint(int(self.length/10))
+        trajectory = self.__getitem__(idx)
+        while not trajectory[3] and idx < self.length:   ### 找到第一个 episode 的起点 6/28
+            idx += 1
+            trajectory = self.__getitem__(idx)
+            
+        idx += 1
+        expert_value = 0.
+        for _ in range(num_episodes):
+            temp_value = 0.
+            discount = 1
+            trajectory = self.__getitem__(idx)
+            temp_value += discount * trajectory[0]
+            discount *= gamma
+            while not trajectory[3]:
+                idx += 1
+                trajectory = self.__getitem__(idx)
+                temp_value += discount * trajectory[2]
+                discount *= gamma
+            expert_value += temp_value
+            
+        expert_value /= num_episodes
+        #print(expert_value)
+        return expert_value
         
 
     def sample(self, batch_size):   ### 类似 replay_buffer 的作用？ 6/27
@@ -98,7 +106,8 @@ class Expert(Dataset):
         x, y = [], []
 
         for i in ind: 
-            X, Y = self.__getitem__(i)
+            X, Y, _, _ = self.__getitem__(i)
+            #X, Y = self.__getitem__(i)
             x.append(np.array(X, copy=True))
             y.append(np.array(Y, copy=True))
 

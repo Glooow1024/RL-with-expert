@@ -89,14 +89,15 @@ if __name__ == "__main__":
     if args.policy_name == "TD3": policy = TD3.TD3(state_dim, action_dim, max_action)
     elif args.policy_name == "OurDDPG": policy = OurDDPG.DDPG(state_dim, action_dim, max_action)
     elif args.policy_name == "DDPG": policy = DDPG.DDPG(state_dim, action_dim, max_action)
-    elif args.policy_name == "ExpertDDPG": 
-        policy = ExpertDDPG.ExpertDDPG(state_dim, action_dim, max_action)
+    elif args.policy_name == "ExpertDDPG": policy = ExpertDDPG.ExpertDDPG(state_dim, action_dim, max_action)
 
     replay_buffer = utils.ReplayBuffer()
     
     ### expert 6/28
     expert_dir = './expert_data/'
     expert = Expert(expert_dir)
+    #value_expert = expert.value()  ### 计算 expert 的 value 6/28
+    value_expert = 0.
 
     total_timesteps = 0
     timesteps_since_eval = 0
@@ -135,7 +136,8 @@ if __name__ == "__main__":
                     policy.save(file_name, directory="./pytorch_models")
                 #print(evaluations)
                 np.savez("./results/%s" % (file_name),
-                         value_step=value_step, value_true=value_true, value_pred=value_pred) 
+                         value_step=value_step, value_true=value_true, value_pred=value_pred,
+                         value_expert=value_expert, expert_timesteps=args.expert_timesteps) 
             
             # Reset environment
             obs = env.reset()
@@ -177,4 +179,5 @@ if __name__ == "__main__":
     if args.save_models: 
         policy.save("%s" % (file_name), directory="./pytorch_models")
     np.savez("./results/%s" % (file_name),
-             value_step=value_step, value_true=value_true, value_pred=value_pred) 
+             value_step=value_step, value_true=value_true, value_pred=value_pred,
+             value_expert=value_expert, expert_timesteps=args.expert_timesteps) 
