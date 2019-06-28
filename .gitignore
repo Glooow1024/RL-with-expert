@@ -1,0 +1,15 @@
+##
+*.npy
+*.npz
+*.pt
+*.zip
+*.rar
+*.tar
+*.7z
+*.pth
+*.h5*
+
+##
+*__pycache__*
+*checkpoint*
+

@@ -1,0 +1,1 @@
+python Oursmain.py --policy_name ExpertDDPG --save_models --seed 3
