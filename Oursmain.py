@@ -13,7 +13,7 @@ from expert import Expert
 
 
 # Runs policy for X episodes and returns average reward
-def evaluate_policy(policy, eval_episodes=10):
+def evaluate_policy(policy, eval_episodes=10, expert_value=0.):
     avg_reward = []    ### ground truth 6/28
     our_reward = []    ### critic estimation 6/28
     gamma = 0.99
@@ -34,8 +34,8 @@ def evaluate_policy(policy, eval_episodes=10):
     print("---------------------------------------")
     #print(avg_reward)
     #print(our_reward)
-    print("Evaluation over %d episodes: %f(GD) %f(Ours)" %
-          (eval_episodes, np.mean(avg_reward), np.mean(our_reward)))
+    print("Evaluation over %d episodes: %f(GD) %f(Ours) %f(Expert)" %
+          (eval_episodes, np.mean(avg_reward), np.mean(our_reward), expert_value))
     print("---------------------------------------")
     return np.array(avg_reward), np.array(our_reward)
 
@@ -59,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("--policy_freq", default=2, type=int)            # Frequency of delayed policy updates
     parser.add_argument("--expert_timesteps", default = 3e4, type=int)    ### 使用 expert policy 的 steps 6/28
     parser.add_argument("--use_expert", action = "store_true")         ### 是否使用 expert 训练 6/28
+    parser.add_argument("--expert_dir", default = None, type=str)       ### expert data 目录 6/29
     args = parser.parse_args()
 
     if args.use_expert:
@@ -69,10 +70,10 @@ if __name__ == "__main__":
     print("Settings: %s" % (file_name))
     print("---------------------------------------")
 
-    if not os.path.exists("./results"):
-        os.makedirs("./results")
-    if args.save_models and not os.path.exists("./pytorch_models"):
-        os.makedirs("./pytorch_models")
+    if not os.path.exists("./results/" + args.env_name):
+        os.makedirs("./results/" + args.env_name)
+    if args.save_models and not os.path.exists("./pytorch_models/" + args.env_name):
+        os.makedirs("./pytorch_models/" + args.env_name)
 
     env = gym.make(args.env_name)
 
@@ -94,10 +95,8 @@ if __name__ == "__main__":
     replay_buffer = utils.ReplayBuffer()
     
     ### expert 6/28
-    expert_dir = './expert_data/'
-    expert = Expert(expert_dir)
-    #value_expert = expert.value()  ### 计算 expert 的 value 6/28
-    value_expert = 0.
+    expert = Expert(args.expert_dir)
+    value_expert = expert.value()  ### 计算 expert 的 value 6/28
 
     total_timesteps = 0
     timesteps_since_eval = 0
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     done = True 
     
     # Evaluate untrained policy
-    reward_gd, reward_pred = evaluate_policy(policy)
+    reward_gd, reward_pred = evaluate_policy(policy, expert_value=value_expert)
     value_step = [total_timesteps]
     value_true = [reward_gd]
     value_pred = [reward_pred]
@@ -127,15 +126,15 @@ if __name__ == "__main__":
             # Evaluate episode
             if timesteps_since_eval >= args.eval_freq:
                 timesteps_since_eval %= args.eval_freq
-                reward_gd, reward_pred = evaluate_policy(policy)
+                reward_gd, reward_pred = evaluate_policy(policy, expert_value=value_expert)
                 value_step += [total_timesteps]
                 value_true += [reward_gd]
                 value_pred += [reward_pred]
                 
                 if args.save_models: 
-                    policy.save(file_name, directory="./pytorch_models")
+                    policy.save(file_name, directory="./pytorch_models/"+args.env_name)
                 #print(evaluations)
-                np.savez("./results/%s" % (file_name),
+                np.savez("./results/" + args.env_name + "/%s" % (file_name),
                          value_step=value_step, value_true=value_true, value_pred=value_pred,
                          value_expert=value_expert, expert_timesteps=args.expert_timesteps) 
             
@@ -172,12 +171,12 @@ if __name__ == "__main__":
         timesteps_since_eval += 1
         
     # Final evaluation 
-    reward_gd, reward_pred = evaluate_policy(policy)
+    reward_gd, reward_pred = evaluate_policy(policy, expert_value=value_expert)
     value_step += [total_timesteps]
     value_true += [reward_gd]
     value_pred += [reward_pred]
     if args.save_models: 
-        policy.save("%s" % (file_name), directory="./pytorch_models")
-    np.savez("./results/%s" % (file_name),
+        policy.save("%s" % (file_name), directory="./pytorch_models/" + args.env_name)
+    np.savez("./results/" + args.env_name + "/%s" % (file_name),
              value_step=value_step, value_true=value_true, value_pred=value_pred,
              value_expert=value_expert, expert_timesteps=args.expert_timesteps) 

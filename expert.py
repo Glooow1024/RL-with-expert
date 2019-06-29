@@ -86,17 +86,17 @@ class Expert(Dataset):
             temp_value = 0.
             discount = 1
             trajectory = self.__getitem__(idx)
-            temp_value += discount * trajectory[0]
+            temp_value += discount * trajectory[2]
             discount *= gamma
             while not trajectory[3]:
                 idx += 1
                 trajectory = self.__getitem__(idx)
                 temp_value += discount * trajectory[2]
+                print('episode ', idx, trajectory[2])
                 discount *= gamma
             expert_value += temp_value
             
         expert_value /= num_episodes
-        #print(expert_value)
         return expert_value
         
 
