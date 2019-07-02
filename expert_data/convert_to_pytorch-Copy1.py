@@ -9,7 +9,7 @@ import torch
 
 def main():
     parser = argparse.ArgumentParser('Converts expert trajectories from h5 to pt format.')
-    parser.add_argument('--h5-filepath', default='./Walker2d-v2/', help='input h5 file', type=str)
+    parser.add_argument('--h5-filepath', default='./ppo_1/Walker2d-v2/', help='input h5 file', type=str)
     args = parser.parse_args()
 
     #if args.pt_file is None:

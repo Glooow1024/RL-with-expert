@@ -71,7 +71,7 @@ class ExpertDDPG(object):
             #print(critic_loss)
             #print(lambda_Q * torch.max(input=EA, other=torch.tensor(0.).to(device)))
             if use_expert:
-                critic_loss += lambda_Q * torch.max(input=EA, other=torch.tensor(0.).to(device)).item() ### ours 6/28
+                critic_loss += lambda_Q * torch.max(input=-EA, other=torch.tensor(0.).to(device)).item() ### ours 6/28
             
             # Optimize the critic
             self.critic_optimizer.zero_grad()

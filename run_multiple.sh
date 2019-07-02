@@ -23,5 +23,15 @@ do
         --env_name Walker2d-v2 --save_models \
         --seed $i \
         --expert_dir ./expert_data/Walker2d-v2/
+        
+    python Oursmain.py --policy_name ExpertDDPG \
+        --env_name HalfCheetah-v2 --save_models \
+        --seed $i --use_expert \
+        --expert_dir ./expert_data/HalfCheetah-v2/
+    
+    python Oursmain.py --policy_name ExpertDDPG \
+        --env_name HalfCheetah-v2 --save_models \
+        --seed $i \
+        --expert_dir ./expert_data/HalfCheetah-v2/
 
 done

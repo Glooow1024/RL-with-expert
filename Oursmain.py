@@ -63,9 +63,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.use_expert:
-        file_name = "%s_%s_%s" % (args.policy_name, args.env_name, str(args.seed))
+        file_name = "%s_%s_%03d" % (args.policy_name, args.env_name, args.seed)
     else:
-        file_name = "%s_%s_%s_without_expert" % (args.policy_name, args.env_name, str(args.seed))
+        file_name = "%s_%s_%03d_without_expert" % (args.policy_name, args.env_name, args.seed)
     print("---------------------------------------")
     print("Settings: %s" % (file_name))
     print("---------------------------------------")
@@ -97,6 +97,8 @@ if __name__ == "__main__":
     ### expert 6/28
     expert = Expert(args.expert_dir)
     value_expert = expert.value()  ### 计算 expert 的 value 6/28
+    
+    all_episode_reward = []
 
     total_timesteps = 0
     timesteps_since_eval = 0
@@ -117,6 +119,9 @@ if __name__ == "__main__":
 
             if total_timesteps != 0: 
                 print(("Total T: %d Episode Num: %d Episode T: %d Reward: %f") % (total_timesteps, episode_num, episode_timesteps, episode_reward))
+                
+                all_episode_reward += [episode_reward]  ### 记录 6/29
+                
                 if args.policy_name == "TD3":
                     policy.train(replay_buffer, episode_timesteps, args.batch_size, args.discount, args.tau, args.policy_noise, args.noise_clip, args.policy_freq)
                 else: 
@@ -136,7 +141,8 @@ if __name__ == "__main__":
                 #print(evaluations)
                 np.savez("./results/" + args.env_name + "/%s" % (file_name),
                          value_step=value_step, value_true=value_true, value_pred=value_pred,
-                         value_expert=value_expert, expert_timesteps=args.expert_timesteps) 
+                         value_expert=value_expert, expert_timesteps=args.expert_timesteps,
+                         episode_reward = all_episode_reward) 
             
             # Reset environment
             obs = env.reset()
@@ -179,4 +185,5 @@ if __name__ == "__main__":
         policy.save("%s" % (file_name), directory="./pytorch_models/" + args.env_name)
     np.savez("./results/" + args.env_name + "/%s" % (file_name),
              value_step=value_step, value_true=value_true, value_pred=value_pred,
-             value_expert=value_expert, expert_timesteps=args.expert_timesteps) 
+             value_expert=value_expert, expert_timesteps=args.expert_timesteps,
+             episode_reward = all_episode_reward) 

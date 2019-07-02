@@ -2,7 +2,7 @@
 #    --save_models --seed 9 --use_expert \
 #    --expert_dir ./expert_data/HalfCheetah-v2/
 
-SEED=0
+SEED=4
 
 python Oursmain.py --policy_name ExpertDDPG \
     --env_name Hopper-v2 --save_models \

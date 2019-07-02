@@ -17,7 +17,7 @@ class Expert(Dataset):
                         for f in os.listdir(expert_dir) if '.pt' in f])  ### 读取目录下所有 pt 文件 6/27
         temp_trajectories = torch.load(expert_files[0])
         num_samples_per_file = torch.prod(torch.tensor(temp_trajectories['states'].shape[0:2]))###一个文件中包含多少expert timestep6/28
-        num_files = np.minimum(len(expert_files), buffer_size//num_samples_per_file)   ### 随机取出来的文件个数 6/28
+        num_files = np.minimum(len(expert_files), int(buffer_size/num_samples_per_file))   ### 随机取出来的文件个数 6/28
         start_idx = np.random.randint(len(expert_files)-num_files)
         sample_files = expert_files[start_idx:start_idx+num_files]  ### 为了计算 expert value，不能打乱 6/28
         
@@ -88,12 +88,16 @@ class Expert(Dataset):
             trajectory = self.__getitem__(idx)
             temp_value += discount * trajectory[2]
             discount *= gamma
+            #a = idx
+            #print('idx', idx)
             while not trajectory[3]:
                 idx += 1
                 trajectory = self.__getitem__(idx)
                 temp_value += discount * trajectory[2]
-                print('episode ', idx, trajectory[2])
+                #print('episode ', idx, trajectory[2])
                 discount *= gamma
+            idx += 1
+            #print('length', idx - a)
             expert_value += temp_value
             
         expert_value /= num_episodes
